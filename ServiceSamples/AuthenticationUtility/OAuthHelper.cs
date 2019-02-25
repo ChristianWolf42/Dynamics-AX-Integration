@@ -28,8 +28,8 @@ namespace AuthenticationUtility
             AuthenticationContext authenticationContext = new AuthenticationContext(aadTenant, false);
             AuthenticationResult authenticationResult;
 
-            if (useWebAppAuthentication)
-            {
+            //if (useWebAppAuthentication)
+            //{
                 if (string.IsNullOrEmpty(aadClientAppSecret))
                 {
                     Console.WriteLine("Please fill AAD application secret in ClientConfiguration if you choose authentication by the application.");
@@ -47,7 +47,8 @@ namespace AuthenticationUtility
                     Console.WriteLine(string.Format("Failed to authenticate with AAD by application with exception {0} and the stack trace {1}", ex.ToString(), ex.StackTrace));
                     throw new Exception("Failed to authenticate with AAD by application.");
                 }
-            }
+            //} 
+            /*
             else
             {
                 // OAuth through username and password.
@@ -71,7 +72,7 @@ namespace AuthenticationUtility
                     Console.WriteLine(string.Format("Failed to authenticate with AAD by the credential with exception {0} and the stack trace {1}", ex.ToString(), ex.StackTrace));
                     throw new Exception("Failed to authenticate with AAD by the credential.");
                 }
-            }
+            }*/
 
             // Create and get JWT token
             return authenticationResult.CreateAuthorizationHeader();

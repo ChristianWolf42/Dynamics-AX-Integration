@@ -19,8 +19,8 @@ namespace OAuthXppConsoleApplication
         static void Main(string[] args)
         {
             string GetUserSessionOperationPath = string.Format("{0}{1}", ClientConfiguration.Default.UriString.TrimEnd('/'), sessionUrl);
-            
-            var request = HttpWebRequest.Create(GetUserSessionOperationPath);     
+
+            var request = HttpWebRequest.Create(GetUserSessionOperationPath);
             // If you call GetAuthenticationHeader with true you will the auth via AAD Web App, otherwise via Native AAD App
             request.Headers[OAuthHelper.OAuthHeader] = OAuthHelper.GetAuthenticationHeader();
             request.Method = "POST";

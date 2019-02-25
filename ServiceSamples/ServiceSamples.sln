@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 14
-VisualStudioVersion = 14.0.25420.1
+# Visual Studio 15
+VisualStudioVersion = 15.0.27703.2042
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "AuthenticationUtility", "AuthenticationUtility\AuthenticationUtility.csproj", "{195ED9B3-92AD-417E-B20A-6438DD0E0B55}"
 EndProject
@@ -24,6 +24,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "PHPConsoleApplication", "PHPConsoleApplication\PHPConsoleApplication.csproj", "{154E69A6-FD19-4280-A621-B1457B6FE30C}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TLSConsoleApplication", "TLSConsoleApplication\TLSConsoleApplication.csproj", "{0EDB6F35-1BA6-4C98-8709-49989DF7F2A8}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CFXJSONLoadDriver", "CFXJSONLoadDriver\CFXJSONLoadDriver.csproj", "{A13EB001-8BD3-4C6B-B1E7-625BD95D2449}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -67,6 +69,10 @@ Global
 		{0EDB6F35-1BA6-4C98-8709-49989DF7F2A8}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0EDB6F35-1BA6-4C98-8709-49989DF7F2A8}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0EDB6F35-1BA6-4C98-8709-49989DF7F2A8}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A13EB001-8BD3-4C6B-B1E7-625BD95D2449}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A13EB001-8BD3-4C6B-B1E7-625BD95D2449}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A13EB001-8BD3-4C6B-B1E7-625BD95D2449}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A13EB001-8BD3-4C6B-B1E7-625BD95D2449}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -80,5 +86,9 @@ Global
 		{003F5F9E-658D-4C90-B185-6726A5CF41FC} = {D09E6460-3148-4A92-8D6A-2C478E119F0E}
 		{154E69A6-FD19-4280-A621-B1457B6FE30C} = {D09E6460-3148-4A92-8D6A-2C478E119F0E}
 		{0EDB6F35-1BA6-4C98-8709-49989DF7F2A8} = {D09E6460-3148-4A92-8D6A-2C478E119F0E}
+		{A13EB001-8BD3-4C6B-B1E7-625BD95D2449} = {D09E6460-3148-4A92-8D6A-2C478E119F0E}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C11BC28F-7CA9-4E08-88E3-4D0CB898C5D3}
 	EndGlobalSection
 EndGlobal
