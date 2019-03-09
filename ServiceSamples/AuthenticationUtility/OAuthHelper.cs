@@ -30,25 +30,25 @@ namespace AuthenticationUtility
 
             //if (useWebAppAuthentication)
             //{
-                if (string.IsNullOrEmpty(aadClientAppSecret))
-                {
-                    Console.WriteLine("Please fill AAD application secret in ClientConfiguration if you choose authentication by the application.");
-                    throw new Exception("Failed OAuth by empty application secret.");
-                }
+            if (string.IsNullOrEmpty(aadClientAppSecret))
+            {
+                Console.WriteLine("Please fill AAD application secret in ClientConfiguration if you choose authentication by the application.");
+                throw new Exception("Failed OAuth by empty application secret.");
+            }
 
-                try
-                {
-                    // OAuth through application by application id and application secret.
-                    var creadential = new ClientCredential(aadClientAppId, aadClientAppSecret);
-                    authenticationResult = authenticationContext.AcquireTokenAsync(aadResource, creadential).Result;
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(string.Format("Failed to authenticate with AAD by application with exception {0} and the stack trace {1}", ex.ToString(), ex.StackTrace));
-                    throw new Exception("Failed to authenticate with AAD by application.");
-                }
-            //} 
-            /*
+            try
+            {
+                // OAuth through application by application id and application secret.
+                var credential = new ClientCredential(aadClientAppId, aadClientAppSecret);
+                authenticationResult = authenticationContext.AcquireTokenAsync(aadResource, credential).Result;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(string.Format("Failed to authenticate with AAD by application with exception {0} and the stack trace {1}", ex.ToString(), ex.StackTrace));
+                Console.ReadLine();
+                throw new Exception("Failed to authenticate with AAD by application.");
+            }
+            /*}             
             else
             {
                 // OAuth through username and password.

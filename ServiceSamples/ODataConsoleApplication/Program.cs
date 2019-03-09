@@ -15,22 +15,24 @@ namespace ODataConsoleApplication
             // To test custom entities, regenerate "ODataClient.tt" file.
             // https://blogs.msdn.microsoft.com/odatateam/2014/03/11/tutorial-sample-how-to-use-odata-client-code-generator-to-generate-client-side-proxy-class/
 
-            Uri oDataUri = new Uri(ODataEntityPath, UriKind.Absolute);
+            /*Uri oDataUri = new Uri(ODataEntityPath, UriKind.Absolute);
             var context = new Resources(oDataUri);
 
             context.SendingRequest2 += new EventHandler<SendingRequest2EventArgs>(delegate (object sender, SendingRequest2EventArgs e)
             {
                 var authenticationHeader = OAuthHelper.GetAuthenticationHeader(useWebAppAuthentication: true);
                 e.RequestMessage.SetHeader(OAuthHelper.OAuthHeader, authenticationHeader);
-            });
+            });*/
 
             // Uncomment below to run specific examples
 
+            MetadataDocumentValidator.ValidateMetadataDocument();
+
             // 1. Simple query examples
 
-            QueryExamples.ReadLegalEntities(context);
+            // QueryExamples.ReadLegalEntities(context);
             // QueryExamples.GetInlineQueryCount(context);
-            // QueryExamples.GetTopRecords(context);
+            //QueryExamples.GetTopRecords(context);
             // QueryExamples.FilterSyntax(context);
             // QueryExamples.FilterLinqSyntax(context);
             // QueryExamples.SortSyntax(context);

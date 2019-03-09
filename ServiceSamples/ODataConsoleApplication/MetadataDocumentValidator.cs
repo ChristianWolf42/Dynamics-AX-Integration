@@ -14,9 +14,9 @@ namespace ODataConsoleApplication
     class MetadataDocumentValidator
     {
         /// <param name="args"></param>
-        static void ValidateMetadataDocument(string[] args)
+        public static void ValidateMetadataDocument()
         {
-            string filename = @"C:\Users\xyz\Documents\metadata.xml";  // change this path as needed
+            string filename = @"C:\Temp\metadata.xml";  // change this path as needed
 
             XmlReader r = XmlReader.Create(File.Open(filename, FileMode.Open, FileAccess.Read));
 
