@@ -20,7 +20,7 @@ namespace OAuthXppConsoleApplication
             string GetUserSessionOperationPath = string.Format("{0}{1}", ClientConfiguration.Default.UriString.TrimEnd('/'), sessionUrl);
             
             var request = HttpWebRequest.Create(GetUserSessionOperationPath);            
-            request.Headers[OAuthHelper.OAuthHeader] = OAuthHelper.GetAuthenticationHeader();
+            request.Headers[OAuthHelper.OAuthHeader] = OAuthHelper.GetAuthenticationHeader(true);
             request.Method = "POST";
             request.ContentLength = 0;
 

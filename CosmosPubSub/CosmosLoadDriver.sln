@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 15
+VisualStudioVersion = 15.0.28307.539
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CosmosLoadDriver", "CosmosLoadDriver\CosmosLoadDriver.csproj", "{B0D03D1C-564D-419A-864F-E0E2CD18A6AB}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CosmosBulkImport", "CosmosBulkImport\CosmosBulkImport.csproj", "{27E80E7E-1A69-4A9C-89DE-241BD1E6336A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{B0D03D1C-564D-419A-864F-E0E2CD18A6AB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B0D03D1C-564D-419A-864F-E0E2CD18A6AB}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B0D03D1C-564D-419A-864F-E0E2CD18A6AB}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B0D03D1C-564D-419A-864F-E0E2CD18A6AB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{27E80E7E-1A69-4A9C-89DE-241BD1E6336A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{27E80E7E-1A69-4A9C-89DE-241BD1E6336A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{27E80E7E-1A69-4A9C-89DE-241BD1E6336A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{27E80E7E-1A69-4A9C-89DE-241BD1E6336A}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {008CD489-F1CD-418E-8055-9944BA6767E9}
+	EndGlobalSection
+EndGlobal

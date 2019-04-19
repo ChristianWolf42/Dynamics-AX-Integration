@@ -12,16 +12,16 @@ namespace AuthenticationUtility
 
         public static ClientConfiguration OneBox = new ClientConfiguration()
         {
-            UriString = "https://usnconeboxax1aos.cloud.onebox.dynamics.com/",
-            UserName = "tusr1@TAEOfficial.ccsctp.net",            
+            UriString = "https://serbusdemo-devdab83280c3478b63devaos.cloudax.dynamics.com/",
+            UserName = "",            
             // Insert the correct password here for the actual test.
             Password = "",
 
-            ActiveDirectoryResource = "https://usnconeboxax1aos.cloud.onebox.dynamics.com",
-            ActiveDirectoryTenant = "https://login.windows-ppe.net/TAEOfficial.ccsctp.net",
-            ActiveDirectoryClientAppId = "d8a9a121-b463-41f6-a86c-041272bdb340",
+            ActiveDirectoryResource = "https://serbusdemo-devdab83280c3478b63devaos.cloudax.dynamics.com",
+            ActiveDirectoryTenant = "https://login.windows.net/microsoft.com",
+            ActiveDirectoryClientAppId = "0ebd8b83-a5bb-4ef2-9f4d-bb759253b191",
             // Insert here the application secret when authenticate with AAD by the application
-            ActiveDirectoryClientAppSecret = "",
+            ActiveDirectoryClientAppSecret = "RevrL2vQpri2+7HgiPUs5lGZ0wdLyd+AX0QdQYC3jmw=",
 
             // Change TLS version of HTTP request from the client here
             // Ex: TLSVersion = "1.2"
