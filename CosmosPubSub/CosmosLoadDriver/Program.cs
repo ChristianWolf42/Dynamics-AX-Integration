@@ -19,7 +19,7 @@
         private static readonly int RUS = Int32.Parse(ConfigurationManager.AppSettings["RUS"]);
         private static readonly int NumberOfDocumentsToInsert = Int32.Parse(ConfigurationManager.AppSettings["NumberOfDocumentsToInsert"]);
         private static readonly string CollectionPartitionKey = ConfigurationManager.AppSettings["CollectionPartitionKey"];
-
+        
         private static CosmosDatabase cosmosDatabase = null;
 
         // public static void Main(string[] args)
@@ -37,11 +37,16 @@
                 //These values are available from the Azure Management Portal on the Cosmos Account Blade under "Keys"
                 //NB > Keep these values in a safe & secure location. Together they provide Administrative access to your Cosmos account
                 CosmosClientBuilder clientBuilder = new CosmosClientBuilder(ConnectionString);
-                clientBuilder.UseConnectionModeDirect();
+                clientBuilder.UseConnectionModeDirect();                
                
                 using (CosmosClient client = clientBuilder.Build())
-                {                   
-                    Program.RunDemoAsync(client).GetAwaiter().GetResult();
+                {
+                    CosmosContainer container = Program.createDB(client).GetAwaiter().GetResult();
+
+                    while(true)
+                    {
+                        Program.RunDemoAsync(container).GetAwaiter().GetResult();
+                    }                        
                 }
             }
             catch (CosmosException cre)
@@ -55,16 +60,19 @@
             }
             finally
             {
-                Console.WriteLine("End of test, press any key to exit.");
+                Console.WriteLine($"{NumberOfDocumentsToInsert} Documents have been inserted.");
                 Console.ReadKey();
             }
         }
 
-        private static async Task RunDemoAsync(CosmosClient client)
+        private static async Task<CosmosContainer> createDB(CosmosClient client)
         {
             cosmosDatabase = await client.Databases.CreateDatabaseIfNotExistsAsync(DatabaseName);
-            CosmosContainer container = await Program.GetOrCreateContainerAsync(cosmosDatabase, CollectionName);
+            return await Program.GetOrCreateContainerAsync(cosmosDatabase, CollectionName);
+        }
 
+        private static async Task RunDemoAsync(CosmosContainer container)
+        {            
             await Program.MassItemInsert(container);            
         }
 
@@ -126,7 +134,7 @@
                 };
 
                 //await container.Items.UpsertItemAsync<Record>(record.PartitionKey, record);
-                await container.Items.CreateItemAsync<Record>(record.PartitionKey, record);
+                await container.Items.CreateItemAsync<Record>(record.PartitionKey, record);                
                 //await Task.Delay(10);
             }            
         }

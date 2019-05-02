@@ -31,47 +31,55 @@
         public static void Main(string[] args)
         {
             ServicePointManager.DefaultConnectionLimit = int.MaxValue;
-
-            try
-            {
-                //Read the Cosmos endpointUrl and authorisationKeys from configuration
-                //These values are available from the Azure Management Portal on the Cosmos Account Blade under "Keys"
-                //NB > Keep these values in a safe & secure location. Together they provide Administrative access to your Cosmos account
-                DocumentClient documentClient = new DocumentClient(new Uri(uri), key, new ConnectionPolicy
+            
+                try
                 {
-                    ConnectionMode = ConnectionMode.Direct,
-                    ConnectionProtocol = Protocol.Tcp,
-                    MaxConnectionLimit = 10000                    
-                });
-                
+                    //Read the Cosmos endpointUrl and authorisationKeys from configuration
+                    //These values are available from the Azure Management Portal on the Cosmos Account Blade under "Keys"
+                    //NB > Keep these values in a safe & secure location. Together they provide Administrative access to your Cosmos account
+                    DocumentClient documentClient = new DocumentClient(new Uri(uri), key, new ConnectionPolicy
+                    {
+                        ConnectionMode = ConnectionMode.Direct,
+                        ConnectionProtocol = Protocol.Tcp,
+                        MaxConnectionLimit = 10000
+                    });
 
-                using (documentClient)
-                {
-                    Program.RunDemoAsync(documentClient).GetAwaiter().GetResult();
+                    using (documentClient)
+                    {
+                        DocumentCollection collection = GetCollection(documentClient).GetAwaiter().GetResult();
+
+                        while(true)
+                        {
+                            RunDemoAsync(documentClient, collection).GetAwaiter().GetResult();
+                        }                        
+                    }
                 }
-            }
-            catch (DocumentClientException cre)
-            {
-                Console.WriteLine(cre.ToString());
-            }
-            catch (Exception e)
-            {
-                Exception baseException = e.GetBaseException();
-                Console.WriteLine("Error: {0}, Message: {1}", e.Message, baseException.Message);
-            }
-            finally
-            {
-                Console.WriteLine("End of test, press any key to exit.");
-                Console.ReadKey();
-            }
+                catch (DocumentClientException cre)
+                {
+                    Console.WriteLine(cre.ToString());
+                }
+                catch (Exception e)
+                {
+                    Exception baseException = e.GetBaseException();
+                    Console.WriteLine("Error: {0}, Message: {1}", e.Message, baseException.Message);
+                }
+                finally
+                {
+                    Console.WriteLine($"{NumberOfDocumentsToInsert} Documents have been inserted.");
+                    Console.ReadKey();
+                }
+                               
         }
 
-        private static async Task RunDemoAsync(DocumentClient client)
+        private static async Task<DocumentCollection> GetCollection(DocumentClient client)
         {
             cosmosDatabase = await client.CreateDatabaseIfNotExistsAsync(new Database { Id = DatabaseName });
-            DocumentCollection container = await Program.GetOrCreateContainerAsync(cosmosDatabase, CollectionName, client);
-            
-            await Program.MassItemInsert(client, container);           
+            return await GetOrCreateContainerAsync(cosmosDatabase, CollectionName, client);
+        }
+
+        private static async Task RunDemoAsync(DocumentClient client, DocumentCollection container)
+        {                       
+            await MassItemInsert(client, container);           
         }
 
         private static async Task<DocumentCollection> GetOrCreateContainerAsync(Database database, string containerId, DocumentClient client)
@@ -155,6 +163,7 @@
                     Id = System.Guid.NewGuid().ToString(),
                     RecId = i,
                     TableName = TableName,
+
                     /*
                     Field1 = "a",
                     Field2 = "b",
@@ -162,13 +171,20 @@
                     Field4 = "d",
                     Field5 = "e",
                     */
-                    
+
+                    Field1 = new string('a', 100),
+                    Field2 = new string('b', 100),
+                    Field3 = new string('c', 100),
+                    Field4 = new string('d', 100),
+                    Field5 = new string('e', 100),
+
+                    /*
                     Field1 = new string('a', 1000),
                     Field2 = new string('b', 1000),
                     Field3 = new string('c', 1000),
                     Field4 = new string('d', 1000),
                     Field5 = new string('e', 1000),
-                     
+                    */
                     /*
                     Field1 = new string('a', 5000),
                     Field2 = new string('b', 5000),
