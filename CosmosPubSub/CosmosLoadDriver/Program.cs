@@ -43,10 +43,10 @@
                 {
                     CosmosContainer container = Program.createDB(client).GetAwaiter().GetResult();
 
-                    while(true)
-                    {
+                   while(true)
+                   {
                         Program.RunDemoAsync(container).GetAwaiter().GetResult();
-                    }                        
+                   }                        
                 }
             }
             catch (CosmosException cre)
@@ -79,7 +79,9 @@
         private static async Task<CosmosContainer> GetOrCreateContainerAsync(CosmosDatabase database, string containerId)
         {
             CosmosContainerSettings containerDefinition = new CosmosContainerSettings(id: containerId, partitionKeyPath: CollectionPartitionKey);
-            containerDefinition.IndexingPolicy = new IndexingPolicy(new RangeIndex(DataType.String) { Precision = -1 });
+            containerDefinition.IndexingPolicy = new IndexingPolicy();
+            containerDefinition.IndexingPolicy.Automatic = false;
+            containerDefinition.IndexingPolicy.IndexingMode = IndexingMode.None;
 
             return await database.Containers.CreateContainerIfNotExistsAsync(
                 containerSettings: containerDefinition,
@@ -134,7 +136,7 @@
                 };
 
                 //await container.Items.UpsertItemAsync<Record>(record.PartitionKey, record);
-                await container.Items.CreateItemAsync<Record>(record.PartitionKey, record);                
+               await container.Items.CreateItemAsync<Record>(record.PartitionKey, record);               
                 //await Task.Delay(10);
             }            
         }
@@ -155,7 +157,7 @@
             public bool IsRegistered { get; set; }
 
             public DateTime RegistrationDate { get; set; }
-            public string PartitionKey => TableName;
+            public string PartitionKey => Id;
 
             public static string PartitionKeyPath => CollectionPartitionKey;
         }

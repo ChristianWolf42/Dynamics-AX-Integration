@@ -95,11 +95,12 @@
                 DocumentCollection collectionDefinition = new DocumentCollection();
                 collectionDefinition.Id = containerId;
                 collectionDefinition.PartitionKey.Paths.Add(CollectionPartitionKey);
+                collectionDefinition.IndexingPolicy.Automatic = false;
 
                 return await client.CreateDocumentCollectionAsync(
                                 UriFactory.CreateDatabaseUri(DatabaseName),
                                 collectionDefinition,
-                                new RequestOptions { OfferThroughput = 100000 });
+                                new RequestOptions { OfferThroughput = RUS });
             }           
         }
 
@@ -216,7 +217,7 @@
             public bool IsRegistered { get; set; }
 
             public DateTime RegistrationDate { get; set; }
-            public string PartitionKey => TableName;
+            public string PartitionKey => Id;
 
             public static string PartitionKeyPath => CollectionPartitionKey;
         }
