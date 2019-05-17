@@ -43,10 +43,10 @@
                 {
                     CosmosContainer container = Program.createDB(client).GetAwaiter().GetResult();
 
-                   while(true)
-                   {
+                   //while(true)
+                   //{
                         Program.RunDemoAsync(container).GetAwaiter().GetResult();
-                   }                        
+                   //}                        
                 }
             }
             catch (CosmosException cre)

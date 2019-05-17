@@ -41,17 +41,17 @@
                     {
                         ConnectionMode = ConnectionMode.Direct,
                         ConnectionProtocol = Protocol.Tcp,
-                        MaxConnectionLimit = 10000
+                        MaxConnectionLimit = 50000
                     });
 
                     using (documentClient)
                     {
                         DocumentCollection collection = GetCollection(documentClient).GetAwaiter().GetResult();
 
-                        while(true)
-                        {
+                        //while(true)
+                        //{
                             RunDemoAsync(documentClient, collection).GetAwaiter().GetResult();
-                        }                        
+                        //}                        
                     }
                 }
                 catch (DocumentClientException cre)
@@ -65,8 +65,8 @@
                 }
                 finally
                 {
-                    Console.WriteLine($"{NumberOfDocumentsToInsert} Documents have been inserted.");
-                    Console.ReadKey();
+                    //Console.WriteLine($"Tried to insert: {NumberOfDocumentsToInsert} Documents.");
+                    //Console.ReadKey();
                 }
                                
         }
@@ -122,82 +122,105 @@
 
         private static async Task MassItemInsert(DocumentClient client, DocumentCollection container)
         {
-                        
+
             // Combining bulk import and task list
-            List<List<Record>> BatchList = new List<List<Record>>();           
-            
-            for (var i = 0; i < DegreeOfParallelism; i++)
+            //List<List<Record>> BatchList = new List<List<Record>>();           
+
+            //for (var i = 0; i < DegreeOfParallelism; i++)
+            //{
+            //BatchList.Add(await CreateItemsForBatch("Table" + i, NumberOfDocumentsToInsert / DegreeOfParallelism));
+            //}
+
+            List<Record> L = await CreateItemsForBatch("Table", NumberOfDocumentsToInsert / DegreeOfParallelism);
+            while (true)
             {
-                BatchList.Add(await CreateItemsForBatch("Table" + i, NumberOfDocumentsToInsert / DegreeOfParallelism));
+                //var tasks = new List<Task>();
+                IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
+                await bulkExecutor.InitializeAsync();
+
+                Stopwatch s = new Stopwatch();
+                s.Start();
+                //for (var i = 0; i < DegreeOfParallelism; i++)
+                //{
+                var response = await bulkExecutor.BulkImportAsync(
+                                    documents: L,
+                                    enableUpsert: true,
+                                    disableAutomaticIdGeneration: true,
+                                    maxConcurrencyPerPartitionKeyRange: null,
+                                    maxInMemorySortingBatchSize: null,
+                                    cancellationToken: CancellationToken.None);
+                //}
+                Console.Write($"Tried to insert: {NumberOfDocumentsToInsert} Documents || ");
+                Console.Write($"Number of Documents imported: {response.NumberOfDocumentsImported} || ");
+                Console.Write($"Cosmos time: {response.TotalTimeTaken} || ");
+                Console.Write($"Cosmos RUS: {response.TotalRequestUnitsConsumed} || ");
+
+
+                /*for (var i = 0; i < DegreeOfParallelism; i++)
+                {
+                    tasks.Add(bulkExecutor.BulkImportAsync(
+                            documents: BatchList[i],
+                            disableAutomaticIdGeneration: true,
+                                    maxConcurrencyPerPartitionKeyRange: null,
+                                    maxInMemorySortingBatchSize: null
+                        ));
+                }*/
+
+
+                //await Task.WhenAll(tasks);
+                s.Stop();
+                Console.WriteLine($"Elapsed Milliseconds (App): {s.ElapsedMilliseconds}");
             }
-
-            var tasks = new List<Task>();
-            IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
-            await bulkExecutor.InitializeAsync();
-
-            Stopwatch s = new Stopwatch();
-            s.Start();
-            for (var i = 0; i < DegreeOfParallelism; i++)
-            {
-                tasks.Add(bulkExecutor.BulkImportAsync(
-                        documents: BatchList[i],
-                        disableAutomaticIdGeneration: true,
-                                maxConcurrencyPerPartitionKeyRange: null,
-                                maxInMemorySortingBatchSize: null
-                    ));
-            }
-
-            
-            await Task.WhenAll(tasks);
-            s.Stop();
-            Console.WriteLine("Elapsed Milliseconds: {0}", s.ElapsedMilliseconds);            
         }        
 
         public static async Task<List<Record>> CreateItemsForBatch(string TableName, int RecordsToCreate)
-        {
+        {            
             List<Record> r = new List<Record>();
 
-            for (int i = 0; i < RecordsToCreate; i++)
+            for (int x = 0; x < DegreeOfParallelism; x++)
             {
-                Record record = new Record
+                string tn = DegreeOfParallelism.ToString();
+                for (int i = 0; i < RecordsToCreate; i++)
                 {
-                    Id = System.Guid.NewGuid().ToString(),
-                    RecId = i,
-                    TableName = TableName,
+                    Record record = new Record
+                    {
+                        Id = System.Guid.NewGuid().ToString(),
+                        TableName = tn,
+                        RecId = i,                        
 
-                    /*
-                    Field1 = "a",
-                    Field2 = "b",
-                    Field3 = "c",
-                    Field4 = "d",
-                    Field5 = "e",
-                    */
+                        /*
+                        Field1 = "a",
+                        Field2 = "b",
+                        Field3 = "c",
+                        Field4 = "d",
+                        Field5 = "e",
+                        */
 
-                    Field1 = new string('a', 100),
-                    Field2 = new string('b', 100),
-                    Field3 = new string('c', 100),
-                    Field4 = new string('d', 100),
-                    Field5 = new string('e', 100),
+                        Field1 = new string('a', 100),
+                        Field2 = new string('b', 100),
+                        Field3 = new string('c', 100),
+                        Field4 = new string('d', 100),
+                        Field5 = new string('e', 100),
 
-                    /*
-                    Field1 = new string('a', 1000),
-                    Field2 = new string('b', 1000),
-                    Field3 = new string('c', 1000),
-                    Field4 = new string('d', 1000),
-                    Field5 = new string('e', 1000),
-                    */
-                    /*
-                    Field1 = new string('a', 5000),
-                    Field2 = new string('b', 5000),
-                    Field3 = new string('c', 5000),
-                    Field4 = new string('d', 5000),
-                    Field5 = new string('e', 5000),*/
-                    IsRegistered = true,
-                    RegistrationDate = DateTime.UtcNow.AddDays(-30)
-                };
-                r.Add(record);
+                        /*
+                        Field1 = new string('a', 1000),
+                        Field2 = new string('b', 1000),
+                        Field3 = new string('c', 1000),
+                        Field4 = new string('d', 1000),
+                        Field5 = new string('e', 1000),
+                        */
+                        /*
+                        Field1 = new string('a', 5000),
+                        Field2 = new string('b', 5000),
+                        Field3 = new string('c', 5000),
+                        Field4 = new string('d', 5000),
+                        Field5 = new string('e', 5000),*/
+                        IsRegistered = true,
+                        RegistrationDate = DateTime.UtcNow.AddDays(-30)
+                    };
+                    r.Add(record);
+                }
             }
-
             return r;
         }
 
@@ -217,7 +240,7 @@
             public bool IsRegistered { get; set; }
 
             public DateTime RegistrationDate { get; set; }
-            public string PartitionKey => Id;
+            public string PartitionKey => TableName;
 
             public static string PartitionKeyPath => CollectionPartitionKey;
         }
