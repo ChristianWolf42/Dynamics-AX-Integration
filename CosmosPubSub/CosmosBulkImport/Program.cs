@@ -3,7 +3,6 @@
     using System;  
     using System.Configuration;   
     using Microsoft.Azure.CosmosDB.BulkExecutor;
-    using Microsoft.Azure.CosmosDB.BulkExecutor.BulkImport;
     using System.Threading.Tasks;
     using System.Threading;
     using System.Collections.Generic;
@@ -14,6 +13,8 @@
 
     using Microsoft.Azure.Documents;
     using Microsoft.Azure.Documents.Client;
+    using System.IO;
+    using System.Text.RegularExpressions;
 
     class Program
     {
@@ -21,12 +22,25 @@
         private static readonly string key = ConfigurationManager.AppSettings["key"];        
         private static readonly string DatabaseName = ConfigurationManager.AppSettings["DatabaseName"];
         private static readonly string CollectionName = ConfigurationManager.AppSettings["CollectionName"];
-        private static readonly int DegreeOfParallelism = Int32.Parse(ConfigurationManager.AppSettings["DegreeOfParallelism"]);
-        private static readonly int RUS = Int32.Parse(ConfigurationManager.AppSettings["RUS"]);
-        private static readonly int NumberOfDocumentsToInsert = Int32.Parse(ConfigurationManager.AppSettings["NumberOfDocumentsToInsert"]);
+        private static int[] RUS = ParseCsvValue(ConfigurationManager.AppSettings["RUS"]);
+        private static int[] NumberOfPartitions => ParseCsvValue(ConfigurationManager.AppSettings["NumberOfPartitions"]);
+        private static readonly int NumberOfDocuments = Int32.Parse(ConfigurationManager.AppSettings["NumberOfDocuments"]);
+        private static readonly int StringFieldSize = Int32.Parse(ConfigurationManager.AppSettings["StringFieldSize"]);
+        private static readonly int NumberOfTrials = Int32.Parse(ConfigurationManager.AppSettings["NumberOfTrials"]);
+        private static readonly bool DeleteCollectionAfterUse = bool.Parse(ConfigurationManager.AppSettings["DeleteCollectionAfterUse"]);
         private static readonly string CollectionPartitionKey = ConfigurationManager.AppSettings["CollectionPartitionKey"];
+        private static readonly string LogDestination = ConfigurationManager.AppSettings["LogDestination"];
 
         private static Database cosmosDatabase = null;
+
+        private static int[] ParseCsvValue(string csvValue)
+        {
+            if (csvValue != null)
+            {
+                return Regex.Replace(csvValue, @"\s+", "").Split(",").Select(token => int.Parse(token)).ToArray();
+            }
+            return new int[0];
+        }
 
         public static void Main(string[] args)
         {
@@ -46,12 +60,12 @@
 
                     using (documentClient)
                     {
-                        DocumentCollection collection = GetCollection(documentClient).GetAwaiter().GetResult();
 
-                        //while(true)
-                        //{
-                            RunDemoAsync(documentClient, collection).GetAwaiter().GetResult();
-                        //}                        
+                        cosmosDatabase =  documentClient.CreateDatabaseIfNotExistsAsync(new Database { Id = DatabaseName }).GetAwaiter().GetResult();
+
+                        
+
+                        MassItemInsert(documentClient).GetAwaiter().GetResult();
                     }
                 }
                 catch (DocumentClientException cre)
@@ -65,28 +79,17 @@
                 }
                 finally
                 {
-                    //Console.WriteLine($"Tried to insert: {NumberOfDocumentsToInsert} Documents.");
-                    //Console.ReadKey();
-                }
-                               
+                //Console.WriteLine($"Tried to insert: {NumberOfRecordsPerTable} Documents.");
+                //Console.ReadKey();
+            }
+
         }
 
-        private static async Task<DocumentCollection> GetCollection(DocumentClient client)
-        {
-            cosmosDatabase = await client.CreateDatabaseIfNotExistsAsync(new Database { Id = DatabaseName });
-            return await GetOrCreateContainerAsync(cosmosDatabase, CollectionName, client);
-        }
-
-        private static async Task RunDemoAsync(DocumentClient client, DocumentCollection container)
-        {                       
-            await MassItemInsert(client, container);           
-        }
-
-        private static async Task<DocumentCollection> GetOrCreateContainerAsync(Database database, string containerId, DocumentClient client)
+        private static async Task<DocumentCollection> GetOrCreateContainerAsync(Database database, string containerId, DocumentClient client, int? RUS)
         {
             DocumentCollection dataCollection = GetCollectionIfExists(DatabaseName, CollectionName, client);
 
-            if (dataCollection.ToString() != "")
+            if (dataCollection != null && dataCollection.ToString() != "")
             {
                 return dataCollection;
             }
@@ -120,73 +123,84 @@
                 .Where(c => c.Id == collectionName).AsEnumerable().FirstOrDefault();
         }
 
-        private static async Task MassItemInsert(DocumentClient client, DocumentCollection container)
+        private static async Task MassItemInsert(DocumentClient client)
         {
 
-            // Combining bulk import and task list
-            //List<List<Record>> BatchList = new List<List<Record>>();           
+            File.WriteAllText(LogDestination, $"number_of_documents,number_of_partitions,rus_provisioned,rus_consumed,elapsed_seconds\n");
 
-            //for (var i = 0; i < DegreeOfParallelism; i++)
-            //{
-            //BatchList.Add(await CreateItemsForBatch("Table" + i, NumberOfDocumentsToInsert / DegreeOfParallelism));
-            //}
-
-            List<Record> L = await CreateItemsForBatch("Table", NumberOfDocumentsToInsert / DegreeOfParallelism);
-            while (true)
+            // Executes the experiment <NumberOfTrials> times for each pair <NumberOfPartitions, RUS>
+            for (var i = 0; i < NumberOfPartitions.Length; i++)
             {
-                //var tasks = new List<Task>();
-                IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
-                await bulkExecutor.InitializeAsync();
-
-                Stopwatch s = new Stopwatch();
-                s.Start();
-                //for (var i = 0; i < DegreeOfParallelism; i++)
-                //{
-                var response = await bulkExecutor.BulkImportAsync(
-                                    documents: L,
-                                    enableUpsert: true,
-                                    disableAutomaticIdGeneration: true,
-                                    maxConcurrencyPerPartitionKeyRange: null,
-                                    maxInMemorySortingBatchSize: null,
-                                    cancellationToken: CancellationToken.None);
-                //}
-                Console.Write($"Tried to insert: {NumberOfDocumentsToInsert} Documents || ");
-                Console.Write($"Number of Documents imported: {response.NumberOfDocumentsImported} || ");
-                Console.Write($"Cosmos time: {response.TotalTimeTaken} || ");
-                Console.Write($"Cosmos RUS: {response.TotalRequestUnitsConsumed} || ");
-
-
-                /*for (var i = 0; i < DegreeOfParallelism; i++)
+                for (var k = 0; k < RUS.Length; k++)
                 {
-                    tasks.Add(bulkExecutor.BulkImportAsync(
-                            documents: BatchList[i],
-                            disableAutomaticIdGeneration: true,
-                                    maxConcurrencyPerPartitionKeyRange: null,
-                                    maxInMemorySortingBatchSize: null
-                        ));
-                }*/
+                    int? rus = RUS[k];
+                    DocumentCollection container = null;
 
+                    try
+                    {
+                        container = await GetOrCreateContainerAsync(cosmosDatabase, CollectionName, client, rus);
+                        Console.WriteLine($"Collection {container.DocumentsLink} with {rus} RUS created");
 
-                //await Task.WhenAll(tasks);
-                s.Stop();
-                Console.WriteLine($"Elapsed Milliseconds (App): {s.ElapsedMilliseconds}");
+                        for (var j = 0; j < NumberOfTrials; j++)
+                        {
+                            int numberOfRecordsPerTable = NumberOfDocuments / NumberOfPartitions[i];
+                            List<Record> L = CreateItemsForBatch(NumberOfPartitions[i], numberOfRecordsPerTable);
+
+                            //var tasks = new List<Task>();
+                            IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
+                            await bulkExecutor.InitializeAsync();
+
+                            Stopwatch s = new Stopwatch();
+                            s.Start();
+
+                            var response = await bulkExecutor.BulkImportAsync(
+                                                documents: L,
+                                                enableUpsert: true,
+                                                disableAutomaticIdGeneration: true,
+                                                maxConcurrencyPerPartitionKeyRange: null,
+                                                maxInMemorySortingBatchSize: null,
+                                                cancellationToken: CancellationToken.None);
+                            Console.Write($"Tried to insert: {NumberOfDocuments} Documents || ");
+                            Console.Write($"Number of Documents imported: {response.NumberOfDocumentsImported} || ");
+                            Console.Write($"Cosmos time: {response.TotalTimeTaken} || ");
+                            Console.Write($"Cosmos RUS: {response.TotalRequestUnitsConsumed} || ");
+                            Console.Write($"RUS provisioned: {rus} || ");
+                            Console.Write($"Number of partitions: {NumberOfPartitions[i]} || ");
+                            Console.Write($"Number of documents per partition: {numberOfRecordsPerTable} || ");
+                            Console.Write($"Inserts per second: {response.NumberOfDocumentsImported / response.TotalTimeTaken.TotalSeconds} || ");
+
+                            File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{rus},{response.TotalRequestUnitsConsumed},{response.TotalTimeTaken.TotalSeconds}\n");
+
+                            s.Stop();
+                            Console.WriteLine($"Elapsed Milliseconds (App): {s.ElapsedMilliseconds}");
+                        }
+                    }
+                    finally
+                    {
+                        if (container != null)
+                        {
+                            await client.DeleteDocumentCollectionAsync(container.DocumentsLink);
+                            Console.WriteLine($"Collection {container.DocumentsLink} deleted");
+                        }
+                    }
+                }
             }
-        }        
+        }
 
-        public static async Task<List<Record>> CreateItemsForBatch(string TableName, int RecordsToCreate)
-        {            
+        public static List<Record> CreateItemsForBatch(int numberOfTables, int numberOfRecordsPerTable)
+        {
             List<Record> r = new List<Record>();
 
-            for (int x = 0; x < DegreeOfParallelism; x++)
+            for (int x = 1; x <= numberOfTables; x++)
             {
-                string tn = DegreeOfParallelism.ToString();
-                for (int i = 0; i < RecordsToCreate; i++)
+                string tn = $"Table-{x}";
+                for (int i = 0; i < numberOfRecordsPerTable; i++)
                 {
                     Record record = new Record
                     {
                         Id = System.Guid.NewGuid().ToString(),
                         TableName = tn,
-                        RecId = i,                        
+                        RecId = i,
 
                         /*
                         Field1 = "a",
@@ -196,11 +210,11 @@
                         Field5 = "e",
                         */
 
-                        Field1 = new string('a', 100),
-                        Field2 = new string('b', 100),
-                        Field3 = new string('c', 100),
-                        Field4 = new string('d', 100),
-                        Field5 = new string('e', 100),
+                        Field1 = new string('a', StringFieldSize),
+                        Field2 = new string('b', StringFieldSize),
+                        Field3 = new string('c', StringFieldSize),
+                        Field4 = new string('d', StringFieldSize),
+                        Field5 = new string('e', StringFieldSize),
 
                         /*
                         Field1 = new string('a', 1000),
