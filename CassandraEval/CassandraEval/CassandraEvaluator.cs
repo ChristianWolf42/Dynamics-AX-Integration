@@ -8,7 +8,6 @@
     using System.Diagnostics;
     using Microsoft.Extensions.Configuration;
     using Cassandra;
-
     class CassandraEvaluator
     {        
         static void Main(string[] args)
@@ -30,23 +29,38 @@
 
         private async Task<bool> TestInsertPerformance(ISession cassandraSession, IConfigurationRoot configuration)
         {
-            bool TestSuccess = false;           
+            bool TestSuccess = false;                       
 
-            BatchStatement batchStatement = new BatchStatement();            
-            SimpleStatement statement = new SimpleStatement(configuration.GetSection("TestInsert").Value
-                    .Replace("[keyspace]", configuration.GetSection("LoadTestCharacteristics").GetSection("CustomerKeySpace").Value.ToLower())
-                    .Replace("[environment]", configuration.GetSection("LoadTestCharacteristics").GetSection("CustomerEnvironment").Value.ToLower()));
-            
-            for (int i = 0; i < 20; i++)
+            // Setup Batch statements
+            List<SimpleStatement> statementList = new List<SimpleStatement>();
+            int numberOfDocuments = int.Parse(configuration.GetSection("LoadTestCharacteristics").GetSection("NumberOfDocuments").Value);
+            for (int i = 0;i< numberOfDocuments; i++) // Number of documents
             {
-                batchStatement.Add(statement);
+                statementList.Add(new SimpleStatement(configuration.GetSection("VolumeInsert").Value
+                    .Replace("[keyspace]", configuration.GetSection("LoadTestCharacteristics").GetSection("CustomerKeySpace").Value.ToLower())
+                    .Replace("[environment]", configuration.GetSection("LoadTestCharacteristics").GetSection("CustomerEnvironment").Value.ToLower())
+                    .Replace("[0]", i.ToString())
+                    .Replace("[1]", i.ToString())));
+            }
+
+            // Build batch statements    
+            List<BatchStatement> batchStatements = new List<BatchStatement>();
+            int numberOfBatchStatements = int.Parse(configuration.GetSection("LoadTestCharacteristics").GetSection("NumberOfBatchStatements").Value);
+            for (int i = 1; i < numberOfBatchStatements; i++) // Number of batch statements
+            {
+                BatchStatement batchStatement = new BatchStatement();
+                for (int x = 1; x <= numberOfDocuments/numberOfBatchStatements; x++)// Number of threads and parallel executed batch statements
+                {
+                    batchStatement.Add(statementList[(x*i)-1]);
+                }
+                batchStatements.Add(batchStatement);
             }
 
             Stopwatch stopwatch = new Stopwatch();
             stopwatch.Start();
 
             List<Task> list = new List<Task>();
-            for (int i = 0; i < 500; i++)
+            foreach(BatchStatement batchStatement in batchStatements)
             {
                 list.Add(cassandraSession.ExecuteAsync(batchStatement));
             }
@@ -121,8 +135,8 @@
                     Console.WriteLine($"{row.GetValue<string>("fnotablename")} | " +
                         $"{row.GetValue<Int64>("partitiontime").ToString()} | " +
                         $"{row.GetValue<System.SByte>("operation").ToString()} | " +
-                        $"{row.GetValue<Int64>("recid").ToString()} | " +
-                        $"{row.GetValue<Guid>("uniqueid").ToString()} | " +
+                        $"{row.GetValue<Guid>("transactionid").ToString()} | " +
+                        $"{row.GetValue<Int64>("recid").ToString()} | " +                        
                         $"{row.GetValue<string>("document")}");
                 }
 
@@ -164,10 +178,14 @@
 
             try
             {
+                SocketOptions socketOptions = new SocketOptions();
+                socketOptions.SetConnectTimeoutMillis(10000);
+
                 Cluster cluster = Cluster.Builder()                    
                     .AddContactPoint(IPAddress.Parse(configuration.GetConnectionString("CassandraPublicIP")))
                     .WithPort(9042)
                     .WithAuthProvider(new PlainTextAuthProvider(configuration.GetConnectionString("DatabaseUser"), configuration.GetConnectionString("ClusterPassword")))
+                    .WithSocketOptions(socketOptions)
                     .Build();
 
                 session = cluster.Connect();
