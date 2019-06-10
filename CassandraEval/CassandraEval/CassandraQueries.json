@@ -1,0 +1,7 @@
+{
+  "DropKeySpace": "DROP KEYSPACE IF EXISTS [keyspace];",
+  "CreateKeySpace": "CREATE KEYSPACE IF NOT EXISTS [keyspace] WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3};",
+  "CreateTable": "CREATE TABLE IF NOT EXISTS contoso.production (FnOTableName text, PartitionTime BigInt, Operation tinyint, RecId bigint, UniqueId UUID, Document text, PRIMARY KEY ((FnOTableName, PartitionTime), Operation, RecId, UniqueId));",
+  "TestInsert": "INSERT INTO [keyspace].[environment] (FnOTableName, PartitionTime, Operation, RecId, UniqueId, Document) VALUES ('SomeTable', toUnixTimestamp(now()), 0, 1, UUID(), 'Some JSON will be here');",
+  "TestSelect": "SELECT * FROM [keyspace].[environment] LIMIT 10;"
+}
