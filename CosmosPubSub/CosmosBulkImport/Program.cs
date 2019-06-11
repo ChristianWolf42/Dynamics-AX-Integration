@@ -140,33 +140,48 @@
                             int numberOfRecordsPerTable = NumberOfDocuments / NumberOfPartitions[i];
                             List<Record> L = CreateItemsForBatch(NumberOfPartitions[i], numberOfRecordsPerTable);
 
-                            //var tasks = new List<Task>();
-                            IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
-                            await bulkExecutor.InitializeAsync();
+
+                            // split in batches
+                            int id = 0;
+                            int batchSize = 500;
+                            IEnumerable<IEnumerable<Record>> batches = L.GroupBy(group => id++ / batchSize).Select(g => g.Select(d => d));
 
                             Stopwatch s = new Stopwatch();
                             s.Start();
 
-                            var response = await bulkExecutor.BulkImportAsync(
+                            Parallel.ForEach(
+                                batches,
+                                new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 },
+                                batch => {
+                                    IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
+                                    bulkExecutor.InitializeAsync().GetAwaiter().GetResult();
+
+                                    var response = bulkExecutor.BulkImportAsync(
                                                 documents: L,
                                                 enableUpsert: true,
                                                 disableAutomaticIdGeneration: true,
                                                 maxConcurrencyPerPartitionKeyRange: null,
                                                 maxInMemorySortingBatchSize: null,
-                                                cancellationToken: CancellationToken.None);
-                            Console.Write($"Tried to insert: {NumberOfDocuments} Documents || ");
-                            Console.Write($"Number of Documents imported: {response.NumberOfDocumentsImported} || ");
-                            Console.Write($"Cosmos time: {response.TotalTimeTaken} || ");
-                            Console.Write($"Cosmos RUS: {response.TotalRequestUnitsConsumed} || ");
-                            Console.Write($"RUS provisioned: {rus} || ");
-                            Console.Write($"Number of partitions: {NumberOfPartitions[i]} || ");
-                            Console.Write($"Number of documents per partition: {numberOfRecordsPerTable} || ");
-                            Console.Write($"Inserts per second: {response.NumberOfDocumentsImported / response.TotalTimeTaken.TotalSeconds} || ");
+                                                cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
 
-                            File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{rus},{response.TotalRequestUnitsConsumed},{response.TotalTimeTaken.TotalSeconds}\n");
+                                } 
+                                );
 
                             s.Stop();
                             Console.WriteLine($"Elapsed Milliseconds (App): {s.ElapsedMilliseconds}");
+
+                            Console.Write($"Tried to insert: {NumberOfDocuments} Documents || ");
+                            //Console.Write($"Number of Documents imported: {response.NumberOfDocumentsImported} || ");
+                            //Console.Write($"Cosmos time: {response.TotalTimeTaken} || ");
+                            //Console.Write($"Cosmos RUS: {response.TotalRequestUnitsConsumed} || ");
+                            Console.Write($"RUS provisioned: {rus} || ");
+                            Console.Write($"Number of partitions: {NumberOfPartitions[i]} || ");
+                            Console.Write($"Number of documents per partition: {numberOfRecordsPerTable} || ");
+                            //Console.Write($"Inserts per second: {response.NumberOfDocumentsImported / response.TotalTimeTaken.TotalSeconds} || ");
+
+                            //File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{rus},{response.TotalRequestUnitsConsumed},{response.TotalTimeTaken.TotalSeconds}\n");
+                            File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{rus},?,{s.ElapsedMilliseconds}\n");
+
                         }
                     }
                 }

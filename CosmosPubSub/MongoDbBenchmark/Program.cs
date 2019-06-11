@@ -15,20 +15,18 @@ namespace MongoDbBenchmark
 {
     public class Program
     {
-
         private static readonly string uri = ConfigurationManager.AppSettings["uri"];
         private static readonly string key = ConfigurationManager.AppSettings["key"];
         private static readonly string DatabaseName = ConfigurationManager.AppSettings["DatabaseName"];
         private static readonly string CollectionName = ConfigurationManager.AppSettings["CollectionName"];
         private static int[] NumberOfPartitions => StringUtils.ParseCsvIntValues(ConfigurationManager.AppSettings["NumberOfPartitions"]);
         private static readonly int NumberOfDocuments = Int32.Parse(ConfigurationManager.AppSettings["NumberOfDocuments"]);
+        private static readonly int BatchSize = Int32.Parse(ConfigurationManager.AppSettings["BatchSize"]);
         private static readonly int StringFieldSize = Int32.Parse(ConfigurationManager.AppSettings["StringFieldSize"]);
         private static readonly int NumberOfTrials = Int32.Parse(ConfigurationManager.AppSettings["NumberOfTrials"]);
         private static readonly bool DeleteCollectionAfterUse = bool.Parse(ConfigurationManager.AppSettings["DeleteCollectionAfterUse"]);
         private static readonly string CollectionPartitionKey = ConfigurationManager.AppSettings["CollectionPartitionKey"];
         private static readonly string LogDestination = ConfigurationManager.AppSettings["LogDestination"];
-
-
 
         public static void Main(string[] args)
         {
@@ -37,7 +35,6 @@ namespace MongoDbBenchmark
             );
 
             MassItemInsert(client);
-            
         }
 
         private static void MassItemInsert(MongoClient client)
@@ -57,23 +54,25 @@ namespace MongoDbBenchmark
                 for (var i = 0; i < NumberOfPartitions.Length; i++)
                 {
                     int numberOfRecordsPerTable = NumberOfDocuments / NumberOfPartitions[i];
-                    var records = CreateItemsForBatch(NumberOfPartitions[i], numberOfRecordsPerTable);
 
                     for (var j = 0; j < NumberOfTrials; j++)
                     {
+                        var records = CreateItemsForBatch(NumberOfPartitions[i], numberOfRecordsPerTable);
 
                         var s = Stopwatch.StartNew();
-                        var response = BulkImport(collection, records);
+                        var responses = BulkImport(collection, records);
                         s.Stop(); // TODO: how to get the actual elapsed time from the server?
 
                         File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{s.Elapsed.TotalSeconds}\n");
 
+                        int totalDocuments = responses.Sum(r => r.ProcessedRequests.Count);
+
                         Console.Write($"Tried to insert: {NumberOfDocuments} Documents || ");
-                        Console.Write($"Number of Documents imported: {response.ProcessedRequests.Count} || ");
+                        Console.Write($"Number of Documents imported: {totalDocuments} || ");
                         Console.Write($"Elapsed Milliseconds (client): {s.ElapsedMilliseconds}");
                         Console.Write($"Number of partitions: {NumberOfPartitions[i]} || ");
                         Console.Write($"Number of documents per partition: {numberOfRecordsPerTable} || ");
-                        Console.Write($"Inserts per second: {response.ProcessedRequests.Count / s.Elapsed.TotalSeconds} || ");
+                        Console.Write($"Inserts per second: {totalDocuments / s.Elapsed.TotalSeconds} || ");
                     }
                 }
             }
@@ -88,7 +87,7 @@ namespace MongoDbBenchmark
         }
 
 
-        private static BulkWriteResult<Record> BulkImport(IMongoCollection<Record> collection, List<Record> records)
+        private static IList<BulkWriteResult<Record>> BulkImport(IMongoCollection<Record> collection, List<Record> records)
         {
             List<WriteModel<Record>> upsertOperations = new List<WriteModel<Record>>();
 
@@ -102,9 +101,23 @@ namespace MongoDbBenchmark
                 upsertOperations.Add(writeModel);
 
             }
+
+            // Split operations in batches to be processed in parallel
+            int batchSize = BatchSize;
+            int i = 0;
+
+            IEnumerable<IEnumerable<WriteModel<Record>>> batches = upsertOperations.GroupBy(key => i++ / batchSize).Select(x => x.Select(v => v).ToList()).ToList();
+
+            var responses = new List<BulkWriteResult<Record>>();
+            Parallel.ForEach(batches, new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount*2},
+                batch =>
+            {
+                BulkWriteResult<Record> response = collection.BulkWrite(batch, new BulkWriteOptions { IsOrdered = false });
+                responses.Add(response);
+            });
+
             
-            BulkWriteResult<Record> response = collection.BulkWrite(upsertOperations, new BulkWriteOptions { IsOrdered = false });
-            return response;
+            return responses;
         }
 
 
@@ -119,6 +132,7 @@ namespace MongoDbBenchmark
                 {
                     Record record = new Record
                     {
+                        Id = ObjectId.GenerateNewId(),
                         OriginalId = Guid.NewGuid(),
                         TableName = tn,
                         RecId = i,
