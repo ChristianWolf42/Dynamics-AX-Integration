@@ -197,3 +197,5 @@ ModelManifest.xml
 /FileBasedIntegrationSamples/LogicAppSamples/.vs/config
 /DIXFSamples/packages
 /FileBasedIntegrationSamples/ConsoleAppSamples/DataPackageHandler/packages
+
+.vs

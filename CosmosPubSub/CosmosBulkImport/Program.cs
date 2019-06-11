@@ -15,6 +15,7 @@
     using Microsoft.Azure.Documents.Client;
     using System.IO;
     using System.Text.RegularExpressions;
+    using BenchmarkCommon;
 
     class Program
     {
@@ -22,8 +23,8 @@
         private static readonly string key = ConfigurationManager.AppSettings["key"];        
         private static readonly string DatabaseName = ConfigurationManager.AppSettings["DatabaseName"];
         private static readonly string CollectionName = ConfigurationManager.AppSettings["CollectionName"];
-        private static int[] RUS = ParseCsvValue(ConfigurationManager.AppSettings["RUS"]);
-        private static int[] NumberOfPartitions => ParseCsvValue(ConfigurationManager.AppSettings["NumberOfPartitions"]);
+        private static int[] RUS = StringUtils.ParseCsvIntValues(ConfigurationManager.AppSettings["RUS"]);
+        private static int[] NumberOfPartitions => StringUtils.ParseCsvIntValues(ConfigurationManager.AppSettings["NumberOfPartitions"]);
         private static readonly int NumberOfDocuments = Int32.Parse(ConfigurationManager.AppSettings["NumberOfDocuments"]);
         private static readonly int StringFieldSize = Int32.Parse(ConfigurationManager.AppSettings["StringFieldSize"]);
         private static readonly int NumberOfTrials = Int32.Parse(ConfigurationManager.AppSettings["NumberOfTrials"]);
@@ -32,15 +33,6 @@
         private static readonly string LogDestination = ConfigurationManager.AppSettings["LogDestination"];
 
         private static Database cosmosDatabase = null;
-
-        private static int[] ParseCsvValue(string csvValue)
-        {
-            if (csvValue != null)
-            {
-                return Regex.Replace(csvValue, @"\s+", "").Split(",").Select(token => int.Parse(token)).ToArray();
-            }
-            return new int[0];
-        }
 
         public static void Main(string[] args)
         {
@@ -129,59 +121,76 @@
             File.WriteAllText(LogDestination, $"number_of_documents,number_of_partitions,rus_provisioned,rus_consumed,elapsed_seconds\n");
 
             // Executes the experiment <NumberOfTrials> times for each pair <NumberOfPartitions, RUS>
-            for (var i = 0; i < NumberOfPartitions.Length; i++)
+            
+            for (var k = 0; k < RUS.Length; k++)
             {
-                for (var k = 0; k < RUS.Length; k++)
-                {
-                    int? rus = RUS[k];
-                    DocumentCollection container = null;
+                int? rus = RUS[k];
+                DocumentCollection container = null;
 
-                    try
+                try
+                {
+                    container = await GetOrCreateContainerAsync(cosmosDatabase, CollectionName, client, rus);
+                    Console.WriteLine($"Collection {container.DocumentsLink} with {rus} RUS created");
+
+                    for (var i = 0; i < NumberOfPartitions.Length; i++)
                     {
-                        container = await GetOrCreateContainerAsync(cosmosDatabase, CollectionName, client, rus);
-                        Console.WriteLine($"Collection {container.DocumentsLink} with {rus} RUS created");
 
                         for (var j = 0; j < NumberOfTrials; j++)
                         {
                             int numberOfRecordsPerTable = NumberOfDocuments / NumberOfPartitions[i];
                             List<Record> L = CreateItemsForBatch(NumberOfPartitions[i], numberOfRecordsPerTable);
 
-                            //var tasks = new List<Task>();
-                            IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
-                            await bulkExecutor.InitializeAsync();
+
+                            // split in batches
+                            int id = 0;
+                            int batchSize = 500;
+                            IEnumerable<IEnumerable<Record>> batches = L.GroupBy(group => id++ / batchSize).Select(g => g.Select(d => d));
 
                             Stopwatch s = new Stopwatch();
                             s.Start();
 
-                            var response = await bulkExecutor.BulkImportAsync(
+                            Parallel.ForEach(
+                                batches,
+                                new ParallelOptions() { MaxDegreeOfParallelism = Environment.ProcessorCount * 2 },
+                                batch => {
+                                    IBulkExecutor bulkExecutor = new BulkExecutor(client, container);
+                                    bulkExecutor.InitializeAsync().GetAwaiter().GetResult();
+
+                                    var response = bulkExecutor.BulkImportAsync(
                                                 documents: L,
                                                 enableUpsert: true,
                                                 disableAutomaticIdGeneration: true,
                                                 maxConcurrencyPerPartitionKeyRange: null,
                                                 maxInMemorySortingBatchSize: null,
-                                                cancellationToken: CancellationToken.None);
-                            Console.Write($"Tried to insert: {NumberOfDocuments} Documents || ");
-                            Console.Write($"Number of Documents imported: {response.NumberOfDocumentsImported} || ");
-                            Console.Write($"Cosmos time: {response.TotalTimeTaken} || ");
-                            Console.Write($"Cosmos RUS: {response.TotalRequestUnitsConsumed} || ");
-                            Console.Write($"RUS provisioned: {rus} || ");
-                            Console.Write($"Number of partitions: {NumberOfPartitions[i]} || ");
-                            Console.Write($"Number of documents per partition: {numberOfRecordsPerTable} || ");
-                            Console.Write($"Inserts per second: {response.NumberOfDocumentsImported / response.TotalTimeTaken.TotalSeconds} || ");
+                                                cancellationToken: CancellationToken.None).GetAwaiter().GetResult();
 
-                            File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{rus},{response.TotalRequestUnitsConsumed},{response.TotalTimeTaken.TotalSeconds}\n");
+                                } 
+                                );
 
                             s.Stop();
                             Console.WriteLine($"Elapsed Milliseconds (App): {s.ElapsedMilliseconds}");
+
+                            Console.Write($"Tried to insert: {NumberOfDocuments} Documents || ");
+                            //Console.Write($"Number of Documents imported: {response.NumberOfDocumentsImported} || ");
+                            //Console.Write($"Cosmos time: {response.TotalTimeTaken} || ");
+                            //Console.Write($"Cosmos RUS: {response.TotalRequestUnitsConsumed} || ");
+                            Console.Write($"RUS provisioned: {rus} || ");
+                            Console.Write($"Number of partitions: {NumberOfPartitions[i]} || ");
+                            Console.Write($"Number of documents per partition: {numberOfRecordsPerTable} || ");
+                            //Console.Write($"Inserts per second: {response.NumberOfDocumentsImported / response.TotalTimeTaken.TotalSeconds} || ");
+
+                            //File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{rus},{response.TotalRequestUnitsConsumed},{response.TotalTimeTaken.TotalSeconds}\n");
+                            File.AppendAllText(LogDestination, $"{NumberOfDocuments},{NumberOfPartitions[i]},{rus},?,{s.ElapsedMilliseconds}\n");
+
                         }
                     }
-                    finally
+                }
+                finally
+                {
+                    if (container != null)
                     {
-                        if (container != null)
-                        {
-                            await client.DeleteDocumentCollectionAsync(container.DocumentsLink);
-                            Console.WriteLine($"Collection {container.DocumentsLink} deleted");
-                        }
+                        await client.DeleteDocumentCollectionAsync(container.DocumentsLink);
+                        Console.WriteLine($"Collection {container.DocumentsLink} deleted");
                     }
                 }
             }
